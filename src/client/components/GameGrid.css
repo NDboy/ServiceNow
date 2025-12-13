@@ -1,0 +1,150 @@
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  max-width: 1000px;
+  padding: 40px 0;
+  z-index: 10;
+  position: relative;
+}
+
+.game-button {
+  position: relative;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border: 2px solid #ff00ff;
+  border-radius: 10px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Orbitron', monospace;
+  color: white;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.game-button:hover:not(:disabled) {
+  transform: translateY(-5px) scale(1.05);
+  border-color: #00ffff;
+  box-shadow: 
+    0 10px 30px rgba(255, 0, 255, 0.3),
+    inset 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.game-button:active:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.game-button.available {
+  border-color: #00ff00;
+  animation: available-pulse 2s ease-in-out infinite;
+}
+
+.game-button.coming-soon {
+  opacity: 0.6;
+  border-color: #666;
+  cursor: not-allowed;
+}
+
+@keyframes available-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 255, 0, 0.8);
+  }
+}
+
+.game-button-inner {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.game-number {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #ff00ff;
+  margin-bottom: 8px;
+  text-shadow: 0 0 10px #ff00ff;
+}
+
+.game-name {
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.game-status {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.game-button.available .game-status {
+  color: #00ff00;
+  text-shadow: 0 0 10px #00ff00;
+}
+
+.game-button.coming-soon .game-status {
+  color: #999;
+}
+
+.game-button-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent, rgba(255, 0, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.game-button:hover:not(:disabled) .game-button-glow {
+  opacity: 1;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .game-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 20px 0;
+  }
+  
+  .game-button {
+    min-height: 100px;
+    padding: 15px;
+  }
+  
+  .game-name {
+    font-size: 0.8rem;
+  }
+  
+  .game-number {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-button {
+    min-height: 80px;
+    padding: 12px;
+  }
+  
+  .game-name {
+    font-size: 0.75rem;
+  }
+  
+  .game-number {
+    font-size: 0.9rem;
+  }
+  
+  .game-status {
+    font-size: 0.65rem;
+  }
+}
