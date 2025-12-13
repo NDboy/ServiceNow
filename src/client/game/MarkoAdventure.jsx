@@ -82,19 +82,19 @@ export default function MarkoAdventure({ onExit }) {
       { x: 700, y: 300, width: 80, height: 20, velocityX: -1.5, minX: 650, maxX: 750 },
     ];
 
-    // Generate coins
+    // Generate coke bottle coins
     for (let i = 0; i < 15; i++) {
       newCoins.push({
         x: Math.random() * (GAME_CONFIG.width - 100) + 50,
         y: Math.random() * (GAME_CONFIG.height - 200) + 100,
         width: 20,
-        height: 20,
+        height: 30,
         collected: false,
         animation: 0,
       });
     }
 
-    // Generate enemies
+    // Generate Grinch enemies
     for (let i = 0; i < 5; i++) {
       newEnemies.push({
         x: Math.random() * (GAME_CONFIG.width - 200) + 100,
@@ -222,9 +222,8 @@ export default function MarkoAdventure({ onExit }) {
         playSound(220, 0.1);
       }
 
-      // Handle shooting (fire power-up)
+      // Handle shooting (fire power-up) - Enhanced to destroy enemies and collect coins
       if (keys['x'] && newPlayer.powerUp === 'fire') {
-        // Add fireball shooting logic here
         setFireballs(prev => [...prev, {
           x: newPlayer.x + (newPlayer.direction === 1 ? newPlayer.width : 0),
           y: newPlayer.y + 10,
@@ -299,7 +298,7 @@ export default function MarkoAdventure({ onExit }) {
         }
       }
 
-      // Coin collisions
+      // Coke bottle coin collisions
       setCoins(prevCoins => 
         prevCoins.map(coin => {
           if (!coin.collected &&
@@ -356,7 +355,7 @@ export default function MarkoAdventure({ onExit }) {
         })
       );
 
-      // Enemy collisions
+      // Grinch enemy collisions
       if (!newPlayer.invincible) {
         setEnemies(prevEnemies =>
           prevEnemies.map(enemy => {
@@ -426,7 +425,7 @@ export default function MarkoAdventure({ onExit }) {
 
   // Update game objects
   const updateGameObjects = useCallback(() => {
-    // Update enemies
+    // Update Grinch enemies
     setEnemies(prevEnemies =>
       prevEnemies.map(enemy => {
         if (enemy.defeated) return enemy;
@@ -464,7 +463,7 @@ export default function MarkoAdventure({ onExit }) {
       })
     );
 
-    // Update coins animation
+    // Update coke bottle coins animation
     setCoins(prevCoins =>
       prevCoins.map(coin => ({
         ...coin,
@@ -472,16 +471,77 @@ export default function MarkoAdventure({ onExit }) {
       }))
     );
 
-    // Update fireballs
-    setFireballs(prevFireballs =>
-      prevFireballs
+    // Update fireballs and handle enhanced collisions
+    setFireballs(prevFireballs => {
+      const activeFireballs = prevFireballs
         .map(fireball => ({
           ...fireball,
           x: fireball.x + fireball.velocityX,
           life: fireball.life - 1
         }))
-        .filter(fireball => fireball.life > 0 && fireball.x > 0 && fireball.x < GAME_CONFIG.width)
-    );
+        .filter(fireball => fireball.life > 0 && fireball.x > 0 && fireball.x < GAME_CONFIG.width);
+
+      // Enhanced fireball collisions - destroy enemies and collect coins
+      activeFireballs.forEach(fireball => {
+        // Fireball destroys enemies
+        setEnemies(prevEnemies =>
+          prevEnemies.map(enemy => {
+            if (!enemy.defeated &&
+                fireball.x < enemy.x + enemy.width &&
+                fireball.x + fireball.width > enemy.x &&
+                fireball.y < enemy.y + enemy.height &&
+                fireball.y + fireball.height > enemy.y) {
+              
+              setScore(prev => prev + 300); // Bonus points for fireball kill
+              playSound(150, 0.2, 'sawtooth');
+              
+              // Add defeat particle effect
+              setParticles(prev => [...prev, {
+                x: enemy.x + enemy.width / 2,
+                y: enemy.y + enemy.height / 2,
+                velocityX: (Math.random() - 0.5) * 8,
+                velocityY: -Math.random() * 8 - 4,
+                life: 50,
+                type: 'fireball-defeat'
+              }]);
+              
+              return { ...enemy, defeated: true };
+            }
+            return enemy;
+          })
+        );
+
+        // Fireball collects coins
+        setCoins(prevCoins =>
+          prevCoins.map(coin => {
+            if (!coin.collected &&
+                fireball.x < coin.x + coin.width &&
+                fireball.x + fireball.width > coin.x &&
+                fireball.y < coin.y + coin.height &&
+                fireball.y + fireball.height > coin.y) {
+              
+              setScore(prev => prev + 150); // Bonus points for fireball collection
+              playSound(523, 0.1, 'sine');
+              
+              // Add coin collection particle effect
+              setParticles(prev => [...prev, {
+                x: coin.x + coin.width / 2,
+                y: coin.y + coin.height / 2,
+                velocityX: (Math.random() - 0.5) * 6,
+                velocityY: -Math.random() * 6 - 3,
+                life: 40,
+                type: 'fireball-coin'
+              }]);
+              
+              return { ...coin, collected: true };
+            }
+            return coin;
+          })
+        );
+      });
+
+      return activeFireballs;
+    });
 
     // Update particles
     setParticles(prevParticles =>
@@ -531,6 +591,112 @@ export default function MarkoAdventure({ onExit }) {
     initLevel();
   }, [initLevel]);
 
+  // Drawing helper functions
+  const drawSantaMarko = (ctx, x, y, width, height, direction, powerUp, invincible) => {
+    // Santa body color
+    let bodyColor = '#DC143C'; // Christmas red
+    if (powerUp === 'big') bodyColor = '#B22222'; // Darker red when big
+    if (powerUp === 'fire') bodyColor = '#FF4500'; // Orange-red for fire power
+    if (invincible) bodyColor = `hsl(${Date.now() % 360}, 100%, 50%)`; // Rainbow when invincible
+
+    // Draw Santa's body
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(x, y, width, height);
+
+    // Draw Santa's belt
+    ctx.fillStyle = '#8B4513'; // Brown belt
+    const beltY = y + height * 0.6;
+    ctx.fillRect(x, beltY, width, height * 0.15);
+    
+    // Belt buckle
+    ctx.fillStyle = '#FFD700'; // Gold buckle
+    ctx.fillRect(x + width * 0.4, beltY, width * 0.2, height * 0.15);
+
+    // Draw Santa's hat
+    ctx.fillStyle = '#DC143C'; // Red hat
+    ctx.fillRect(x, y - 8, width, 8);
+    ctx.fillStyle = '#FFFFFF'; // White trim
+    ctx.fillRect(x, y - 2, width, 2);
+    
+    // Hat pom-pom
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(x + width - 4, y - 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw Santa's beard
+    ctx.fillStyle = '#FFFFFF';
+    const beardY = y + height * 0.4;
+    ctx.fillRect(x + 2, beardY, width - 4, height * 0.3);
+
+    // Draw eyes
+    ctx.fillStyle = '#000000';
+    const eyeSize = 3;
+    const eyeY = y + height * 0.25;
+    if (direction === 1) {
+      ctx.fillRect(x + width * 0.6, eyeY, eyeSize, eyeSize);
+      ctx.fillRect(x + width * 0.8, eyeY, eyeSize, eyeSize);
+    } else {
+      ctx.fillRect(x + width * 0.1, eyeY, eyeSize, eyeSize);
+      ctx.fillRect(x + width * 0.3, eyeY, eyeSize, eyeSize);
+    }
+  };
+
+  const drawGrinchEnemy = (ctx, x, y, width, height) => {
+    // Grinch green body
+    ctx.fillStyle = '#228B22';
+    ctx.fillRect(x, y, width, height);
+
+    // Grinch head (darker green)
+    ctx.fillStyle = '#006400';
+    ctx.fillRect(x + 5, y, width - 10, height * 0.7);
+
+    // Evil grinning mouth
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(x + 8, y + height * 0.4, width - 16, 3);
+
+    // Angry eyes
+    ctx.fillStyle = '#FF0000'; // Red angry eyes
+    ctx.fillRect(x + 8, y + height * 0.2, 4, 4);
+    ctx.fillRect(x + width - 12, y + height * 0.2, 4, 4);
+
+    // Grinch hair tufts
+    ctx.fillStyle = '#228B22';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x + 5 + i * 6, y - 3, 3, 5);
+    }
+  };
+
+  const drawCokeBottle = (ctx, x, y, width, height, animation) => {
+    // Bottle body (classic Coke red)
+    ctx.fillStyle = '#DC143C';
+    
+    // Bottle shape - narrower at top and bottom
+    const bottleWidth = width * 0.8;
+    const bottleX = x + (width - bottleWidth) / 2;
+    
+    // Main bottle body
+    ctx.fillRect(bottleX, y + 5, bottleWidth, height - 10);
+    
+    // Bottle neck (narrower)
+    const neckWidth = bottleWidth * 0.6;
+    const neckX = bottleX + (bottleWidth - neckWidth) / 2;
+    ctx.fillRect(neckX, y, neckWidth, 8);
+    
+    // Bottle cap
+    ctx.fillStyle = '#FFD700'; // Gold cap
+    ctx.fillRect(neckX, y, neckWidth, 3);
+    
+    // Coke label
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(bottleX + 2, y + height * 0.3, bottleWidth - 4, height * 0.3);
+    
+    // Sparkle effect
+    const sparkleOffset = Math.sin(animation) * 2;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(bottleX + bottleWidth * 0.7 + sparkleOffset, y + height * 0.1, 2, 2);
+  };
+
   // Rendering
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -539,105 +705,133 @@ export default function MarkoAdventure({ onExit }) {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height);
 
-    // Draw background
+    // Draw Christmas background
     const gradient = ctx.createLinearGradient(0, 0, 0, GAME_CONFIG.height);
-    gradient.addColorStop(0, '#87CEEB');
-    gradient.addColorStop(1, '#98FB98');
+    gradient.addColorStop(0, '#87CEEB'); // Light blue sky
+    gradient.addColorStop(0.7, '#FFFFFF'); // White snow
+    gradient.addColorStop(1, '#F0F8FF'); // Alice blue
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height);
 
-    // Draw platforms
-    ctx.fillStyle = '#8B4513';
+    // Draw snowflakes
+    ctx.fillStyle = '#FFFFFF';
+    for (let i = 0; i < 50; i++) {
+      const x = (i * 137.508 + Date.now() * 0.01) % GAME_CONFIG.width;
+      const y = (i * 73.853 + Date.now() * 0.02) % GAME_CONFIG.height;
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw platforms (icy/snowy)
+    ctx.fillStyle = '#E6E6FA'; // Lavender ice
+    ctx.strokeStyle = '#4169E1'; // Royal blue ice edge
+    ctx.lineWidth = 2;
     platforms.forEach(platform => {
       ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+      ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
     });
 
-    // Draw moving platforms
-    ctx.fillStyle = '#DAA520';
+    // Draw moving platforms (Christmas colors)
+    ctx.fillStyle = '#228B22'; // Christmas green
+    ctx.strokeStyle = '#DC143C'; // Christmas red edge
     movingPlatforms.forEach(platform => {
       ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+      ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
     });
 
-    // Draw coins
-    ctx.fillStyle = '#FFD700';
+    // Draw coke bottle coins
     coins.forEach(coin => {
       if (!coin.collected) {
-        const scale = 0.8 + Math.sin(coin.animation) * 0.2;
-        const size = coin.width * scale;
-        ctx.fillRect(
-          coin.x + (coin.width - size) / 2, 
-          coin.y + (coin.height - size) / 2, 
-          size, 
-          size
-        );
+        drawCokeBottle(ctx, coin.x, coin.y, coin.width, coin.height, coin.animation);
       }
     });
 
-    // Draw power-ups
+    // Draw Christmas power-ups
     powerUps.forEach(powerUp => {
       if (!powerUp.collected) {
         if (powerUp.type === 'mushroom') {
-          ctx.fillStyle = '#FF0000';
+          // Christmas mushroom (red with white spots)
+          ctx.fillStyle = '#DC143C';
           ctx.fillRect(powerUp.x, powerUp.y, 32, 32);
           ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(powerUp.x + 8, powerUp.y + 8, 16, 16);
+          // White spots
+          ctx.beginPath();
+          ctx.arc(powerUp.x + 10, powerUp.y + 10, 3, 0, Math.PI * 2);
+          ctx.arc(powerUp.x + 22, powerUp.y + 15, 4, 0, Math.PI * 2);
+          ctx.arc(powerUp.x + 15, powerUp.y + 25, 3, 0, Math.PI * 2);
+          ctx.fill();
         } else if (powerUp.type === 'fireFlower') {
-          ctx.fillStyle = '#FF4500';
+          // Christmas fire flower (red and green)
+          ctx.fillStyle = '#DC143C';
           ctx.fillRect(powerUp.x, powerUp.y, 32, 32);
+          ctx.fillStyle = '#228B22';
+          ctx.fillRect(powerUp.x + 8, powerUp.y + 8, 16, 16);
         } else if (powerUp.type === 'star') {
-          ctx.fillStyle = '#FFFF00';
+          // Christmas star (gold with sparkles)
+          ctx.fillStyle = '#FFD700';
           ctx.beginPath();
           ctx.arc(powerUp.x + 16, powerUp.y + 16, 16, 0, Math.PI * 2);
           ctx.fill();
+          // Sparkle points
+          ctx.fillStyle = '#FFFFFF';
+          const sparkleTime = Date.now() * 0.01;
+          for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI / 3) + sparkleTime;
+            const sparkleX = powerUp.x + 16 + Math.cos(angle) * 12;
+            const sparkleY = powerUp.y + 16 + Math.sin(angle) * 12;
+            ctx.fillRect(sparkleX - 1, sparkleY - 1, 2, 2);
+          }
         }
       }
     });
 
-    // Draw enemies
+    // Draw Grinch enemies
     enemies.forEach(enemy => {
       if (!enemy.defeated) {
-        ctx.fillStyle = enemy.type === 'flyer' ? '#800080' : '#FF0000';
-        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        drawGrinchEnemy(ctx, enemy.x, enemy.y, enemy.width, enemy.height);
       }
     });
 
-    // Draw fireballs
-    ctx.fillStyle = '#FF4500';
+    // Draw Christmas fireballs (candy canes!)
     fireballs.forEach(fireball => {
+      // Candy cane stripes
+      ctx.fillStyle = '#DC143C'; // Red
       ctx.fillRect(fireball.x, fireball.y, fireball.width, fireball.height);
+      ctx.fillStyle = '#FFFFFF'; // White
+      for (let i = 0; i < fireball.width; i += 4) {
+        ctx.fillRect(fireball.x + i, fireball.y, 2, fireball.height);
+      }
     });
 
-    // Draw particles
+    // Draw particles with Christmas colors
     particles.forEach(particle => {
       const alpha = particle.life / 30;
-      if (particle.type === 'coin') {
-        ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+      if (particle.type === 'coin' || particle.type === 'fireball-coin') {
+        ctx.fillStyle = `rgba(220, 20, 60, ${alpha})`; // Christmas red
+      } else if (particle.type === 'fireball-defeat') {
+        ctx.fillStyle = `rgba(34, 139, 34, ${alpha})`; // Christmas green
       } else {
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`; // White snow
       }
-      ctx.fillRect(particle.x - 2, particle.y - 2, 4, 4);
+      
+      // Snowflake-like particles
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+      ctx.fill();
     });
 
-    // Draw player
-    let playerColor = '#0000FF'; // Default blue
-    if (player.powerUp === 'big') playerColor = '#0000AA';
-    if (player.powerUp === 'fire') playerColor = '#FF6600';
-    if (player.invincible) playerColor = `hsl(${Date.now() % 360}, 100%, 50%)`;
-    
-    ctx.fillStyle = playerColor;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-
-    // Draw player eyes
-    ctx.fillStyle = '#FFFFFF';
-    const eyeSize = 4;
-    const eyeY = player.y + 8;
-    if (player.direction === 1) {
-      ctx.fillRect(player.x + 20, eyeY, eyeSize, eyeSize);
-      ctx.fillRect(player.x + 26, eyeY, eyeSize, eyeSize);
-    } else {
-      ctx.fillRect(player.x + 2, eyeY, eyeSize, eyeSize);
-      ctx.fillRect(player.x + 8, eyeY, eyeSize, eyeSize);
-    }
+    // Draw Santa Marko
+    drawSantaMarko(
+      ctx, 
+      player.x, 
+      player.y, 
+      player.width, 
+      player.height, 
+      player.direction, 
+      player.powerUp, 
+      player.invincible
+    );
 
   }, [player, platforms, movingPlatforms, coins, enemies, powerUps, fireballs, particles]);
 
@@ -681,12 +875,12 @@ export default function MarkoAdventure({ onExit }) {
   };
 
   return (
-    <div className="marko-adventure">
+    <div className="marko-adventure christmas-theme">
       <div className="game-hud">
         <div className="hud-item">SCORE: {score.toLocaleString()}</div>
         <div className="hud-item">LIVES: {lives}</div>
         <div className="hud-item">WORLD: {world}-{level}</div>
-        <div className="hud-item">MARKO: {player.powerUp.toUpperCase()}</div>
+        <div className="hud-item">SANTA MARKO: {player.powerUp.toUpperCase()}</div>
       </div>
 
       <canvas
@@ -697,7 +891,7 @@ export default function MarkoAdventure({ onExit }) {
       />
 
       <div className="game-controls">
-        <div>Arrow Keys/WASD: Move | Space/Up: Jump | Shift: Run | Down: Duck | X: Fire | ESC: Pause</div>
+        <div>Arrow Keys/WASD: Move | Space/Up: Jump | Shift: Run | Down: Duck | X: Candy Cane Fire! | ESC: Pause</div>
       </div>
 
       {gameState === 'paused' && (
@@ -714,7 +908,7 @@ export default function MarkoAdventure({ onExit }) {
         <div className="game-overlay">
           <div className="overlay-content">
             <h2>GAME OVER</h2>
-            <p>Final Score: {score.toLocaleString()}</p>
+            <p>Ho Ho Ho! Final Score: {score.toLocaleString()}</p>
             <button onClick={restartGame}>PLAY AGAIN</button>
             <button onClick={onExit}>EXIT TO PORTAL</button>
           </div>
@@ -725,14 +919,14 @@ export default function MarkoAdventure({ onExit }) {
         <div className="game-overlay">
           <div className="overlay-content">
             <h2>LEVEL COMPLETE!</h2>
-            <p>Bonus: {lives * 1000} points</p>
+            <p>Christmas Bonus: {lives * 1000} points</p>
             <p>Score: {score.toLocaleString()}</p>
             {world < WORLD_CONFIG.totalWorlds || level < WORLD_CONFIG.levelsPerWorld ? (
               <button onClick={nextLevel}>NEXT LEVEL</button>
             ) : (
               <div>
-                <h3>CONGRATULATIONS!</h3>
-                <p>You've completed all levels!</p>
+                <h3>MERRY CHRISTMAS!</h3>
+                <p>Santa Marko saved Christmas!</p>
                 <button onClick={restartGame}>PLAY AGAIN</button>
               </div>
             )}

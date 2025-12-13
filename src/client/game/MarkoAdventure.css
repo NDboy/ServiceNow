@@ -11,6 +11,10 @@
   overflow: hidden;
 }
 
+.marko-adventure.christmas-theme {
+  background: linear-gradient(135deg, #0a0a2e, #1a1a3e, #2a2a5e);
+}
+
 .game-hud {
   position: absolute;
   top: 20px;
@@ -24,26 +28,30 @@
 }
 
 .hud-item {
-  background: rgba(0, 0, 0, 0.8);
+  background: linear-gradient(135deg, rgba(220, 20, 60, 0.9), rgba(34, 139, 34, 0.9));
   color: #fff;
   padding: 8px 16px;
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 0.9rem;
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
-  border: 2px solid #00ff00;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  border: 2px solid #FFD700;
+  box-shadow: 
+    0 0 15px rgba(255, 215, 0, 0.4),
+    inset 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
 .game-canvas {
-  border: 3px solid #ff00ff;
+  border: 4px solid #DC143C;
   box-shadow: 
-    0 0 20px rgba(255, 0, 255, 0.5),
-    inset 0 0 20px rgba(0, 0, 0, 0.3);
+    0 0 25px rgba(220, 20, 60, 0.6),
+    0 0 50px rgba(34, 139, 34, 0.3),
+    inset 0 0 25px rgba(255, 255, 255, 0.1);
   background: #87CEEB;
   max-width: 100%;
   max-height: 70vh;
+  border-radius: 8px;
 }
 
 .game-controls {
@@ -51,16 +59,17 @@
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: #00ffff;
+  background: linear-gradient(135deg, rgba(220, 20, 60, 0.9), rgba(34, 139, 34, 0.9));
+  color: #FFFFFF;
   padding: 12px 20px;
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 0.8rem;
   text-align: center;
-  border: 1px solid #00ffff;
+  border: 2px solid #FFD700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
 }
 
 .game-overlay {
@@ -69,7 +78,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: 
+    linear-gradient(45deg, 
+      rgba(0, 0, 0, 0.9), 
+      rgba(34, 139, 34, 0.2), 
+      rgba(220, 20, 60, 0.2), 
+      rgba(0, 0, 0, 0.9)
+    );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -78,41 +93,80 @@
 
 .overlay-content {
   text-align: center;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
   padding: 40px;
-  border-radius: 10px;
-  border: 3px solid #ff00ff;
-  box-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
+  border-radius: 15px;
+  border: 4px solid #FFD700;
+  box-shadow: 
+    0 0 40px rgba(255, 215, 0, 0.6),
+    0 0 80px rgba(220, 20, 60, 0.3),
+    0 0 120px rgba(34, 139, 34, 0.2);
   max-width: 400px;
   width: 90%;
+  position: relative;
+}
+
+.overlay-content::before {
+  content: '🎄❄️🎅❄️🎄';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 2rem;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  padding: 0 20px;
+  border-radius: 20px;
+  border: 2px solid #FFD700;
 }
 
 .overlay-content h2 {
-  color: #ff00ff;
+  color: #DC143C;
   font-size: 2rem;
-  margin: 0 0 20px 0;
-  text-shadow: 0 0 10px #ff00ff;
+  margin: 20px 0 20px 0;
+  text-shadow: 
+    0 0 10px #DC143C,
+    0 0 20px #FFD700;
   text-transform: uppercase;
   letter-spacing: 3px;
+  animation: christmas-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes christmas-glow {
+  0% {
+    text-shadow: 
+      0 0 10px #DC143C,
+      0 0 20px #FFD700;
+  }
+  100% {
+    text-shadow: 
+      0 0 20px #DC143C,
+      0 0 30px #FFD700,
+      0 0 40px #228B22;
+  }
 }
 
 .overlay-content h3 {
-  color: #00ff00;
+  color: #228B22;
   font-size: 1.5rem;
   margin: 20px 0 10px 0;
-  text-shadow: 0 0 10px #00ff00;
+  text-shadow: 
+    0 0 10px #228B22,
+    0 0 20px #FFD700;
   text-transform: uppercase;
+  animation: christmas-glow 2s ease-in-out infinite alternate;
 }
 
 .overlay-content p {
   color: #fff;
   font-size: 1.1rem;
   margin: 10px 0;
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  text-shadow: 
+    0 0 5px rgba(255, 255, 255, 0.5),
+    0 0 10px rgba(255, 215, 0, 0.3);
 }
 
 .overlay-content button {
-  background: linear-gradient(45deg, #ff00ff, #00ffff);
+  background: linear-gradient(45deg, #DC143C, #228B22, #FFD700);
   border: none;
   padding: 15px 30px;
   margin: 10px;
@@ -122,15 +176,36 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 8px;
   transition: all 0.3s ease;
-  box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+  box-shadow: 
+    0 0 25px rgba(220, 20, 60, 0.5),
+    0 0 50px rgba(34, 139, 34, 0.3);
   font-size: 0.9rem;
+  border: 2px solid #FFD700;
 }
 
 .overlay-content button:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 30px rgba(255, 0, 255, 0.8);
+  box-shadow: 
+    0 0 35px rgba(220, 20, 60, 0.7),
+    0 0 70px rgba(34, 139, 34, 0.5),
+    0 0 100px rgba(255, 215, 0, 0.3);
+  animation: christmas-button-glow 1s ease-in-out infinite;
+}
+
+@keyframes christmas-button-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 35px rgba(220, 20, 60, 0.7),
+      0 0 70px rgba(34, 139, 34, 0.5);
+  }
+  50% {
+    box-shadow: 
+      0 0 50px rgba(220, 20, 60, 0.9),
+      0 0 100px rgba(34, 139, 34, 0.7),
+      0 0 150px rgba(255, 215, 0, 0.5);
+  }
 }
 
 .overlay-content button:active {
@@ -173,6 +248,11 @@
     margin: 20px;
   }
   
+  .overlay-content::before {
+    font-size: 1.5rem;
+    top: -15px;
+  }
+  
   .overlay-content h2 {
     font-size: 1.5rem;
     letter-spacing: 2px;
@@ -194,10 +274,10 @@
     position: relative;
     top: 0;
     margin-bottom: 10px;
-    background: rgba(0, 0, 0, 0.8);
+    background: linear-gradient(135deg, rgba(220, 20, 60, 0.9), rgba(34, 139, 34, 0.9));
     padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #00ff00;
+    border-radius: 8px;
+    border: 2px solid #FFD700;
   }
   
   .hud-item {
@@ -217,7 +297,7 @@
   }
 }
 
-/* Retro scanlines effect */
+/* Christmas snow effect on canvas */
 .game-canvas::after {
   content: '';
   position: absolute;
@@ -226,25 +306,60 @@
   right: 0;
   bottom: 0;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 255, 0, 0.03) 2px,
-    rgba(0, 255, 0, 0.03) 4px
-  );
+  background: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.02) 2px,
+      rgba(255, 255, 255, 0.02) 4px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(255, 215, 0, 0.01) 10px,
+      rgba(255, 215, 0, 0.01) 12px
+    );
 }
 
-/* Power-up glow effects */
-@keyframes power-glow {
+/* Christmas power-up glow effects */
+@keyframes christmas-power-glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+    box-shadow: 
+      0 0 25px rgba(220, 20, 60, 0.5),
+      0 0 50px rgba(34, 139, 34, 0.3);
   }
   50% {
-    box-shadow: 0 0 40px rgba(255, 0, 255, 0.8);
+    box-shadow: 
+      0 0 40px rgba(220, 20, 60, 0.8),
+      0 0 80px rgba(34, 139, 34, 0.6),
+      0 0 120px rgba(255, 215, 0, 0.4);
   }
 }
 
 .marko-adventure.powered-up .game-canvas {
-  animation: power-glow 1s ease-in-out infinite;
+  animation: christmas-power-glow 1.5s ease-in-out infinite;
+}
+
+/* Festive background animation */
+.marko-adventure.christmas-theme::before {
+  content: '🎄 ❄️ 🎅 ❄️ 🎄 ❄️ 🎅 ❄️ 🎄 ❄️ 🎅 ❄️';
+  position: absolute;
+  top: -20px;
+  left: 0;
+  width: 200%;
+  font-size: 1.5rem;
+  opacity: 0.1;
+  animation: festive-scroll 20s linear infinite;
+  z-index: 1;
+}
+
+@keyframes festive-scroll {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
