@@ -1,0 +1,31 @@
+<xml>
+<sys_script_include>
+<access>public</access>
+<active>true</active>
+<api_name>sn_hr_core.HRMLUtils</api_name>
+<caller_access>2</caller_access>
+<client_callable>false</client_callable>
+<description/>
+<mobile_callable>false</mobile_callable>
+<name>HRMLUtils</name>
+<sandbox_callable>false</sandbox_callable>
+<script>
+<![CDATA[ function HRMLUtils() {} HRMLUtils.prototype = Object.extendsObject(HRMLUtilsSNC, { initialize: function() { HRMLUtils.prototype.initialize.apply(this, arguments); }, getHRPredictions: function(hrCaseGr) { var hrService = this._predict(hrCaseGr); if (gs.nil(hrService)) return; var gr = new GlideRecord('sn_hr_core_service'); if (gr.get(hrService)) { if (gr.getValue('active') == 1) { var coe_display = gr.getValue('service_table'); var service = gr.getValue('name'); var service_id = gr.getUniqueValue(); var predictions = { coe_display: coe_display, service_display: service, service_id: service_id }; return predictions; } } gr = new GlideRecord('sn_hr_core_service'); gr.addQuery('value', 'general_inquiry'); gr.query(); if (gr.next()) { var coe_display_error = gr.getDisplayValue('service_table'); var service_error = gr.getDisplayValue('name'); var service_id_error = gr.getUniqueValue(); var predictions_error = { coe_display: coe_display_error, service_display: service_error, service_id: service_id_error }; return predictions_error; } return; }, _predict: function(hrCaseGr) { var domain = hrCaseGr.u_acting_es_domain.u_name.toString(); var gr = new GlideRecord('sn_hr_core_ai_configuration'); gr.addQuery('use_case', 'email_categorization'); gr.addQuery('sys_domain.name', domain); gr.addActiveQuery(); gr.query(); if (!gr.next()) { gr = new GlideRecord('sn_hr_core_ai_configuration'); gr.addQuery('use_case', 'email_categorization'); gr.addQuery('sys_domain', 'global'); gr.addActiveQuery(); gr.query(); if (!gr.next()) return; } var name = gr.solution_capability_definition.solution_name.toString(); gs.info('>--------solution_name ' + name); gs.info('>--------solution_name sys ' + gr.sys_id); if (this._isMLPredictorResultPresent(name, hrCaseGr.sys_id)) return; try { var mlSolution = sn_ml.ClassificationSolutionStore.get(name); if (gs.nil(mlSolution)) return; var options = {}; options.mluc = "MLUC-HR-00004"; options.top_n = 1; options.apply_threshold = false; var result = mlSolution.getActiveVersion().predict(hrCaseGr, options); if (result === null) { //instead of returning null returning empty array return []; } var resultObj = JSON.parse(result); var keys = Object.keys(resultObj); if (gs.nil(keys)||resultObj[keys[0]].length === 0) { return; } var MINIMUM_CONFIDENCE = gs.getProperty('sn_hr_core.auto_categorization_min_confidence'); var DOMAIN_CONFIDENCE = Number(MINIMUM_CONFIDENCE[domain]); gs.info('>--------DOMAIN_CONFIDENCE ' + DOMAIN_CONFIDENCE); var predictedConfidence = Number(resultObj[keys[0]][0]["confidence"]); var hrServiceSysId = resultObj[keys[0]][0]["predictedSysId"]; hrCaseGr.predicted_hr_service = hrServiceSysId; hrCaseGr.u_confidence = predictedConfidence; if (predictedConfidence <= DOMAIN_CONFIDENCE) { return; } hrCaseGr.u_hr_service_routing = 'predictive_intelligence'; return hrServiceSysId; } catch (err) { var logError = function(err) { gs.error(err); }; gs.getMessage('Error while predicting: {0}', err.toString(), logError); } }, _isMLPredictorResultPresent: function(solutionName, caseID) { // fetch the solution from solution id var sol = new GlideRecord('ml_solution'); sol.addQuery('active', true); sol.addQuery('solution_name', solutionName); sol.query(); if (!sol.next()) return false; // Check if predicted result is present var predictorResult = new GlideRecord('ml_predictor_results'); predictorResult.addQuery('source_sys_id', caseID); predictorResult.addQuery('solution', sol.sys_id); predictorResult.query(); if (predictorResult.next()) return true; return false; }, type: 'HRMLUtils' }); ]]>
+</script>
+<sys_class_name>sys_script_include</sys_class_name>
+<sys_created_by>admin</sys_created_by>
+<sys_created_on>2020-03-10 10:02:27</sys_created_on>
+<sys_customer_update>false</sys_customer_update>
+<sys_id>90110594536300105354ddeeff7b127b</sys_id>
+<sys_mod_count>27</sys_mod_count>
+<sys_name>HRMLUtils</sys_name>
+<sys_package display_value="Human Resources: Core" source="sn_hr_core">d4ac3fff5b311200a4656ede91f91af2</sys_package>
+<sys_policy/>
+<sys_replace_on_upgrade>false</sys_replace_on_upgrade>
+<sys_scope display_value="Human Resources: Core">d4ac3fff5b311200a4656ede91f91af2</sys_scope>
+<sys_update_name>sys_script_include_90110594536300105354ddeeff7b127b</sys_update_name>
+<sys_updated_by>QXZ61Y8</sys_updated_by>
+<sys_updated_on>2026-08-26 10:30:00</sys_updated_on>
+</sys_script_include>
+</xml>
+ 
