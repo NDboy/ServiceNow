@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unload unload_date="2026-10-02 11:26:00">
+<sys_ui_page action="INSERT_OR_UPDATE">
+<category>general</category>
+<client_script><![CDATA[var ajaxProcessor = 'x_bmwag_hr_paus.BMW_HR_Case_to_PAUS_AJAX_Util';
+
+function getPausSysId() {
+    // 1. Workspace URL parameter
+    var match = (window.location.search || '').match(/[?&]sysparm_paus_id=([^&]+)/);
+    if (match && match[1]) {
+        return decodeURIComponent(match[1]);
+    }
+
+    // 2. Core UI GlideDialogWindow
+    var dialog = typeof GlideDialogWindow !== 'undefined' ? GlideDialogWindow.get() : null;
+    if (dialog && typeof dialog.getPreference === 'function') {
+        var preference = dialog.getPreference('paus_id');
+        if (preference && preference !== 'null' && preference !== 'undefined') {
+            return String(preference);
+        }
+    }
+
+    // 3. Hidden field populated from Jelly
+    var field = gel('paus_sys_id') || document.getElementById('paus_sys_id');
+    if (field && field.value && field.value !== 'null' && field.value !== 'undefined') {
+        return field.value;
+    }
+
+    return '';
+}
+
+function showMessage(message, isError) {
+    var status = document.getElementById('status_message');
+    status.textContent = message;
+    status.style.display = 'block';
+    status.style.color = isError ? '#b42318' : '#067647';
+}
+
+function loadAttachments() {
+    var pausSysId = getPausSysId();
+    if (!pausSysId) {
+        showMessage('The PAUS request could not be identified.', true);
+        return;
+    }
+
+    var ajax = new GlideAjax(ajaxProcessor);
+    ajax.addParam('sysparm_name', 'getParentAttachments');
+    ajax.addParam('sysparm_paus_id', pausSysId);
+
+    ajax.getXMLAnswer(function(answer) {
+        var response;
+        try {
+            response = JSON.parse(answer || '{}');
+        } catch (error) {
+            showMessage('The attachment response was invalid.', true);
+            return;
+        }
+
+        if (!response.success) {
+            showMessage(response.message || 'Attachments could not be loaded.', true);
+            return;
+        }
+
+        renderAttachments(response.attachments || [], response.all_exist);
+    });
+}
+
+function renderAttachments(attachments, allExist) {
+    var list = document.getElementById('attachment_list');
+    list.innerHTML = '';
+
+    if (attachments.length === 0) {
+        list.textContent = 'No attachments are available on the parent case.';
+        document.getElementById('copy_button').disabled = true;
+        document.getElementById('select_all').disabled = true;
+        return;
+    }
+
+    if (allExist) {
+        showMessage('All parent attachments are already attached to this PAUS request.', true);
+        document.getElementById('copy_button').disabled = true;
+        document.getElementById('select_all').disabled = true;
+    }
+
+    attachments.forEach(function(attachment) {
+        var row = document.createElement('label');
+        row.style.display = 'block';
+        row.style.padding = '8px 4px';
+        row.style.borderBottom = '1px solid #eeeeee';
+
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'attachment_checkbox';
+        checkbox.value = attachment.sys_id;
+        checkbox.style.marginRight = '8px';
+
+        var text = document.createElement('span');
+        text.textContent = attachment.file_name;
+
+        if (attachment.created_on) {
+            text.textContent += ' (' + attachment.created_on + ')';
+        }
+
+        if (attachment.already_exists) {
+            checkbox.disabled = true;
+            row.style.color = '#888888';
+            var tag = document.createElement('span');
+            tag.textContent = ' - Already on PAUS request';
+            tag.style.color = '#b42318';
+            tag.style.fontWeight = 'bold';
+            tag.style.marginLeft = '6px';
+            text.appendChild(tag);
+        } else {
+            checkbox.addEventListener('change', function() {
+                var activeCheckboxes = document.querySelectorAll('.attachment_checkbox:not([disabled])');
+                var checkedCount = document.querySelectorAll('.attachment_checkbox:not([disabled]):checked').length;
+                document.getElementById('select_all').checked = (activeCheckboxes.length > 0 && activeCheckboxes.length === checkedCount);
+            });
+        }
+
+        row.appendChild(checkbox);
+        row.appendChild(text);
+        list.appendChild(row);
+    });
+}
+
+function copySelectedAttachments() {
+    var selected = document.querySelectorAll('.attachment_checkbox:not([disabled]):checked');
+    if (!selected.length) {
+        showMessage('Select at least one attachment.', true);
+        return;
+    }
+
+    var ids = [];
+    selected.forEach(function(checkbox) {
+        ids.push(checkbox.value);
+    });
+
+    var button = document.getElementById('copy_button');
+    button.disabled = true;
+    button.textContent = 'Copying...';
+
+    var ajax = new GlideAjax(ajaxProcessor);
+    ajax.addParam('sysparm_name', 'copySelectedAttachments');
+    ajax.addParam('sysparm_paus_id', getPausSysId());
+    ajax.addParam('sysparm_attachment_ids', ids.join(','));
+
+    ajax.getXMLAnswer(function(answer) {
+        var response;
+        try {
+            response = JSON.parse(answer || '{}');
+        } catch (error) {
+            showMessage('The copy response was invalid.', true);
+            button.disabled = false;
+            button.textContent = 'Copy selected';
+            return;
+        }
+
+        if (!response.success) {
+            showMessage(response.message || 'Attachments could not be copied.', true);
+            button.disabled = false;
+            button.textContent = 'Copy selected';
+            return;
+        }
+
+        showMessage(response.message, false);
+
+        setTimeout(function() {
+            closeAttachmentDialog(true);
+        }, 1000);
+    });
+}
+
+function closeAttachmentDialog(reloadForm) {
+    // 1. Workspace modal closing (only when running in Workspace where modalId was assigned)
+    if (typeof iframeMsgHelper !== 'undefined' && iframeMsgHelper.modalId) {
+        if (reloadForm) {
+            iframeMsgHelper.confirm({ copied: true });
+        } else {
+            iframeMsgHelper.cancel();
+        }
+        return;
+    }
+
+    // 2. Core UI modal closing via GlideModal / GlideDialogWindow
+    var modal = (typeof GlideModal !== 'undefined') ? GlideModal.get() : null;
+    if (modal) {
+        modal.destroy();
+    } else {
+        var dialog = (typeof GlideDialogWindow !== 'undefined') ? GlideDialogWindow.get() : null;
+        if (dialog) {
+            dialog.destroy();
+        }
+    }
+
+    // 3. In Core UI, reload the parent record page to display copied attachments
+    if (reloadForm) {
+        if (typeof window.location !== 'undefined' && typeof window.location.reload === 'function') {
+            window.location.reload();
+        } else if (typeof window.parent !== 'undefined' && window.parent.location) {
+            window.parent.location.reload();
+        }
+    }
+}
+
+document.getElementById('select_all').addEventListener('change', function() {
+    var checkboxes = document.querySelectorAll('.attachment_checkbox:not([disabled])');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = this.checked;
+    }, this);
+});
+
+loadAttachments();]]></client_script>
+<description/>
+<direct>false</direct>
+<endpoint>x_bmwag_hr_paus_attachment_copy_paus.do</endpoint>
+<html><![CDATA[<?xml version="1.0" encoding="utf-8" ?>
+<j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
+
+    <script>
+        var iframeMsgHelper = (function() {
+            function createPayload(action, modalId, data) {
+                return {
+                    messageType: 'IFRAME_MODAL_MESSAGE_TYPE',
+                    modalAction: action,
+                    modalId: modalId,
+                    data: (data ? data : {})
+                };
+            }
+
+            function pm(window, payload) {
+                if (window.parent === window) {
+                    console.warn('Parent is missing. Is this called inside an iFrame?');
+                    return;
+                }
+                window.parent.postMessage(payload, location.origin);
+            }
+
+            function IFrameMessagingHelper(window) {
+                this.window = window;
+                this.src = location.href;
+                this.messageHandler = this.messageHandler.bind(this);
+                this.window.addEventListener('message', this.messageHandler);
+            }
+
+            IFrameMessagingHelper.prototype.messageHandler = function(e) {
+                if (e.data.messageType !== 'IFRAME_MODAL_MESSAGE_TYPE' || e.data.modalAction !== 'IFRAME_MODAL_ACTION_INIT') {
+                    return;
+                }
+                this.modalId = e.data.modalId;
+            };
+
+            IFrameMessagingHelper.prototype.confirm = function(data) {
+                var payload = createPayload('IFRAME_MODAL_ACTION_CONFIRMED', this.modalId, data);
+                pm(this.window, payload);
+            };
+
+            IFrameMessagingHelper.prototype.cancel = function(data) {
+                var payload = createPayload('IFRAME_MODAL_ACTION_CANCELED', this.modalId, data);
+                pm(this.window, payload);
+            };
+
+            return new IFrameMessagingHelper(window);
+        }());
+    </script>
+
+
+    <g:evaluate var="jvar_paus_id" expression="RP.getWindowProperties().get('paus_id') || RP.getParameterValue('sysparm_paus_id') || ''" />
+
+    <input type="hidden" id="paus_sys_id" value="${JS,HTML:jvar_paus_id}" />
+
+    <div style="padding: 16px;">
+        <div id="status_message" style="display: none; margin-bottom: 12px;" role="alert"></div>
+
+        <label style="display: block; margin-bottom: 10px;">
+            <input type="checkbox" id="select_all" style="margin-right: 6px;" />
+            Select All
+        </label>
+
+        <div id="attachment_list" style="max-height: 360px; overflow-y: auto; border: 1px solid #d6d6d6; padding: 8px;">
+            Loading attachments...
+        </div>
+
+        <div style="margin-top: 16px; text-align: right;">
+            <button class="btn btn-default" type="button" style="margin-right: 8px;" onclick="closeAttachmentDialog();">
+                Cancel
+            </button>
+
+            <button class="btn btn-primary" id="copy_button" type="button" onclick="copySelectedAttachments();">
+                Copy selected
+            </button>
+        </div>
+    </div>
+</j:jelly>]]></html>
+<name>attachment_copy_paus</name>
+<processing_script/>
+<sys_class_name>sys_ui_page</sys_class_name>
+<sys_created_by>QXZ4TRF</sys_created_by>
+<sys_created_on>2026-09-18 12:11:07</sys_created_on>
+<sys_customer_update>false</sys_customer_update>
+<sys_id>8423299f47df0f10396ef467536d4362</sys_id>
+<sys_mod_count>36</sys_mod_count>
+<sys_name>attachment_copy_paus</sys_name>
+<sys_package display_value="HR PAUS" source="x_bmwag_hr_paus">904bed92db82d190f6cf9f5cd3961902</sys_package>
+<sys_policy/>
+<sys_replace_on_upgrade>false</sys_replace_on_upgrade>
+<sys_scope display_value="HR PAUS">904bed92db82d190f6cf9f5cd3961902</sys_scope>
+<sys_update_name>sys_ui_page_8423299f47df0f10396ef467536d4362</sys_update_name>
+<sys_updated_by>QXZ4TRF</sys_updated_by>
+<sys_updated_on>2026-09-21 13:51:47</sys_updated_on>
+</sys_ui_page>
+</unload>
