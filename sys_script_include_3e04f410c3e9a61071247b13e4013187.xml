@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unload unload_date="2026-10-02 12:08:54">
+<sys_script_include action="INSERT_OR_UPDATE">
+<access>public</access>
+<active>true</active>
+<api_name>x_bmwag_hr_paus.BMW_HR_Case_to_PAUS_AJAX_Util</api_name>
+<caller_access/>
+<client_callable>true</client_callable>
+<description/>
+<mobile_callable>false</mobile_callable>
+<name>BMW_HR_Case_to_PAUS_AJAX_Util</name>
+<sandbox_callable>false</sandbox_callable>
+<script><![CDATA[var BMW_HR_Case_to_PAUS_AJAX_Util = Class.create();
+BMW_HR_Case_to_PAUS_AJAX_Util.prototype = Object.extendsObject(global.AbstractAjaxProcessor, {
+
+    getLeadingPAUSDetails: function() {
+        // Set up basic variables
+        var hrcSysid = this.getParameter('sysparm_hrc');
+        var leadPausCase = '';
+        var pausDetailsObj = {};
+
+        // Get the lead PAUS case
+        var leadPausGr = new GlideRecord('sn_hr_core_case');
+        leadPausGr.addQuery('sys_id', hrcSysid);
+        leadPausGr.query();
+        if (leadPausGr.next()) {
+            leadPausCase = leadPausGr.getValue('u_paus_reference');
+        }
+
+        // Retrieve the details of the lead PAUS case
+        var leadPausDetailsGr = new GlideRecord('x_bmwag_hr_paus_paus_vorgaenge');
+        leadPausDetailsGr.addQuery('sys_id', leadPausCase);
+        leadPausDetailsGr.query();
+        while (leadPausDetailsGr.next()) {
+            pausDetailsObj.u_subject_person = leadPausDetailsGr.getValue('u_subject_person');
+            pausDetailsObj.u_personalnummer = leadPausDetailsGr.getValue('u_personalnummer');
+            pausDetailsObj.u_planstellennummer_neu = leadPausDetailsGr.getValue('u_planstellennummer_neu');
+            pausDetailsObj.u_begruendung = leadPausDetailsGr.getValue('u_begruendung');
+            pausDetailsObj.u_effectvity_date = leadPausDetailsGr.getDisplayValue('u_effectvity_date');
+            var previousDay = new GlideDateTime(leadPausDetailsGr.getValue('u_effectvity_date'));
+            previousDay.addDaysUTC(-1);
+            pausDetailsObj.u_effectvity_date_previous = previousDay.getLocalDate().getDisplayValue();
+            pausDetailsObj.u_befristet = leadPausDetailsGr.getValue('u_befristet');
+            pausDetailsObj.u_befristung_ende = leadPausDetailsGr.getValue('u_befristung_ende');
+            pausDetailsObj.u_entgeltgruppe_neu = leadPausDetailsGr.getValue('u_entgeltgruppe_neu');
+            pausDetailsObj.u_entgeltstufe_neu = leadPausDetailsGr.getValue('u_entgeltstufe_neu');
+            pausDetailsObj.u_ma_gruppe_neu = leadPausDetailsGr.getValue('u_ma_gruppe_neu');
+            pausDetailsObj.u_ma_kreis_neu = leadPausDetailsGr.getValue('u_ma_kreis_neu');
+            pausDetailsObj.u_arbeitszeitmodell_neu = leadPausDetailsGr.getValue('u_arbeitszeitmodell_neu');
+            pausDetailsObj.u_summe_monatliches_entgelt_neu = leadPausDetailsGr.getValue('u_summe_monatliches_entgelt_neu');
+            pausDetailsObj.u_entgeltzusammensetzung_neu = leadPausDetailsGr.getValue('u_entgeltzusammensetzung_neu');
+            pausDetailsObj.u_gepl_ma_nahme = leadPausDetailsGr.getValue('u_gepl_ma_nahme');
+            pausDetailsObj.u_tarifart_neu = leadPausDetailsGr.getValue('u_tarifart_neu');
+            pausDetailsObj.u_tarifgebiet_neu = leadPausDetailsGr.getValue('u_tarifgebiet_neu');
+            pausDetailsObj.u_topic_category = leadPausDetailsGr.getValue('u_topic_category');
+            pausDetailsObj.u_wochen_arbeitszeit_neu = leadPausDetailsGr.getValue('u_wochen_arbeitszeit_neu');
+            pausDetailsObj.u_personalmassnahme = leadPausDetailsGr.getValue('u_personalmassnahme');
+            pausDetailsObj.u_personalmassnahme_ref = leadPausDetailsGr.getValue('u_personalmassnahme_ref');
+        }
+
+        return JSON.stringify(pausDetailsObj, 0);
+    },
+
+    getParentAttachments: function() {
+        var result = {
+            success: false,
+            message: '',
+            attachments: [],
+            all_exist: false
+        };
+
+        try {
+            var pausSysId = this.getParameter('sysparm_paus_id');
+            if (!pausSysId || pausSysId === 'null' || pausSysId === 'undefined') {
+                result.message = 'Missing sysparm_paus_id.';
+                return JSON.stringify(result);
+            }
+
+            var paus = new GlideRecord('x_bmwag_hr_paus_paus_vorgaenge');
+            if (!paus.get(pausSysId)) {
+                result.message = 'The PAUS request could not be found.';
+                return JSON.stringify(result);
+            }
+
+            if (paus.parent.nil()) {
+                result.message = 'The PAUS request has no parent case.';
+                return JSON.stringify(result);
+            }
+
+            var parent = paus.parent.getRefRecord();
+            if (!parent || !parent.isValidRecord()) {
+                result.message = 'The parent case could not be found.';
+                return JSON.stringify(result);
+            }
+
+            // 1. Build map of existing PAUS attachments: name + size + hash
+            var existingPausMap = {};
+            var pausAtt = new GlideRecord('sys_attachment');
+            pausAtt.addQuery('table_sys_id', paus.getUniqueValue());
+            pausAtt.query();
+            while (pausAtt.next()) {
+                var pKey = (pausAtt.getValue('file_name') || '') + '|' +
+                    (pausAtt.getValue('size_bytes') || '') + '|' +
+                    (pausAtt.getValue('hash') || '');
+                existingPausMap[pKey] = true;
+            }
+
+            // 2. Fetch parent attachments and flag duplicates
+            var attachment = new GlideRecord('sys_attachment');
+            attachment.addQuery('table_sys_id', parent.getUniqueValue());
+            attachment.orderByDesc('sys_created_on');
+            attachment.query();
+
+            var totalCount = 0;
+            var existingCount = 0;
+
+            while (attachment.next()) {
+                totalCount++;
+                var fName = attachment.getValue('file_name') || '';
+                var fSize = attachment.getValue('size_bytes') || '';
+                var fHash = attachment.getValue('hash') || '';
+                var aKey = fName + '|' + fSize + '|' + fHash;
+
+                var alreadyExists = !!existingPausMap[aKey];
+                if (alreadyExists) {
+                    existingCount++;
+                }
+
+                result.attachments.push({
+                    sys_id: attachment.getUniqueValue(),
+                    file_name: fName,
+                    content_type: attachment.getValue('content_type'),
+                    size_bytes: fSize,
+                    created_on: attachment.getDisplayValue('sys_created_on'),
+                    already_exists: alreadyExists
+                });
+            }
+
+            result.all_exist = (totalCount > 0 && totalCount === existingCount);
+            result.success = true;
+        } catch (ex) {
+            result.message = 'Error fetching attachments: ' + ex.message;
+        }
+
+        return JSON.stringify(result);
+    },
+
+    copySelectedAttachments: function() {
+        var result = {
+            success: false,
+            message: '',
+            copied: 0
+        };
+
+        try {
+            var pausSysId = this.getParameter('sysparm_paus_id');
+            if (!pausSysId || pausSysId === 'null' || pausSysId === 'undefined') {
+                result.message = 'Missing sysparm_paus_id.';
+                return JSON.stringify(result);
+            }
+
+            var paus = new GlideRecord('x_bmwag_hr_paus_paus_vorgaenge');
+            if (!paus.get(pausSysId)) {
+                result.message = 'The PAUS request could not be found.';
+                return JSON.stringify(result);
+            }
+
+            if (paus.parent.nil()) {
+                result.message = 'The PAUS request has no parent case.';
+                return JSON.stringify(result);
+            }
+
+            var parent = paus.parent.getRefRecord();
+            if (!parent || !parent.isValidRecord()) {
+                result.message = 'The parent case could not be found.';
+                return JSON.stringify(result);
+            }
+
+            var attachmentIds = this.getParameter('sysparm_attachment_ids') || '';
+            if (!attachmentIds) {
+                result.message = 'Select at least one attachment.';
+                return JSON.stringify(result);
+            }
+
+            var ids = attachmentIds.split(',');
+            var attachmentApi = new GlideSysAttachment();
+
+            for (var i = 0; i < ids.length; i++) {
+                var attachmentId = ids[i].trim();
+                if (!attachmentId) {
+                    continue;
+                }
+
+                var attachment = new GlideRecord('sys_attachment');
+                attachment.addQuery('sys_id', attachmentId);
+                attachment.addQuery('table_sys_id', parent.getUniqueValue());
+                attachment.query();
+
+                if (!attachment.next() || !attachment.canRead()) {
+                    continue;
+                }
+
+                var base64Data = attachmentApi.getContentBase64(attachment);
+                if (base64Data) {
+                    var newSysId = attachmentApi.writeBase64(
+                        paus,
+                        attachment.getValue('file_name'),
+                        attachment.getValue('content_type'),
+                        base64Data
+                    );
+
+                    if (newSysId) {
+                        result.copied++;
+                    }
+                }
+            }
+
+            if (result.copied === 0) {
+                result.message = 'No attachments could be copied.';
+                return JSON.stringify(result);
+            }
+
+            result.success = true;
+            result.message = result.copied + ' attachment(s) copied successfully.';
+        } catch (ex) {
+            result.message = 'Error copying attachments: ' + ex.message;
+        }
+
+        return JSON.stringify(result);
+    },
+
+    type: 'BMW_HR_Case_to_PAUS_AJAX_Util'
+});]]></script>
+<sys_class_name>sys_script_include</sys_class_name>
+<sys_created_by>QXZ4A29</sys_created_by>
+<sys_created_on>2025-05-12 08:51:50</sys_created_on>
+<sys_customer_update>false</sys_customer_update>
+<sys_id>3e04f410c3e9a61071247b13e4013187</sys_id>
+<sys_mod_count>43</sys_mod_count>
+<sys_name>BMW_HR_Case_to_PAUS_AJAX_Util</sys_name>
+<sys_package display_value="HR PAUS" source="x_bmwag_hr_paus">904bed92db82d190f6cf9f5cd3961902</sys_package>
+<sys_policy>read</sys_policy>
+<sys_replace_on_upgrade>false</sys_replace_on_upgrade>
+<sys_scope display_value="HR PAUS">904bed92db82d190f6cf9f5cd3961902</sys_scope>
+<sys_update_name>sys_script_include_3e04f410c3e9a61071247b13e4013187</sys_update_name>
+<sys_updated_by>QXZ4TRF</sys_updated_by>
+<sys_updated_on>2026-09-21 12:21:38</sys_updated_on>
+</sys_script_include>
+</unload>
